@@ -1,0 +1,13 @@
+{
+  "module_id": "biotinker:argent-weather-station",
+  "visibility": "public",
+  "url": "https://github.com/biotinker/viam-argent-weather-station",
+  "description": "A module to run the amenometer and rain gauge of an Argent weather station",
+  "models": [
+    {
+      "api": "rdk:component:sensor",
+      "model": "biotinker:sensor:argent"
+    }
+  ],
+  "entrypoint": "run.sh"
+}
