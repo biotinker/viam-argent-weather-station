@@ -2,6 +2,7 @@ from typing import ClassVar, Mapping, Sequence, Any, Dict, Optional, cast
 from typing_extensions import Self
 
 from viam.module.types import Reconfigurable
+from viam.proto.common import ResourceName
 from viam.proto.app.robot import ComponentConfig
 from viam.resource.base import ResourceBase
 from viam.resource.types import Model, ModelFamily
@@ -12,6 +13,7 @@ from viam.components.generic import Generic
 from viam.logging import getLogger
 from viam.utils import struct_to_dict, dict_to_struct, ValueTypes
 
+import statistics
 import asyncio
 
 LOGGER = getLogger(__name__)
@@ -24,7 +26,6 @@ class ARGENT(Sensor, Reconfigurable):
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         sensor = cls(config.name)
         sensor.reconfigure(config, dependencies)
-        self.ameno_ticks_last = 0
         return sensor
 
     # Validates JSON Configuration
@@ -57,19 +58,19 @@ class ARGENT(Sensor, Reconfigurable):
         
         # Read the wind dir 20 times and get an average
         for i in range(0, 20):
-            await asyncio.sleep(0.001)
-            cur_dir = await self.wind_dir_analog.read()
-            self.dir_mov_avg.append(cur_dir)
+            await asyncio.sleep(0.05)
+            cur_dir = await wind_dir_analog.read()
+            dir_mov_avg.append(cur_dir)
 
-        ameno_ticks = await self.ameno_cnt.value()
-        if self.ameno_ticks_last < ameno_ticks:
+        ameno_ticks = await ameno_cnt.value()
+        if ameno_ticks_last < ameno_ticks:
             
             ameno_tick_time = await ameno.value()
             wind_mph = (1000000/ameno_tick_time) * 1.492 # Magic number to convert amenometer ticks to mph
-            self.ameno_ticks_last = ameno_ticks
+            ameno_ticks_last = ameno_ticks
         else:
             wind_mph = 0
-        rain_hits = await self.rain.value()
+        rain_hits = await rain.value()
 
         return_value: Dict[str, Any] = dict()
         return_value["wind_dir_degrees"] = closest_dir(statistics.fmean(dir_mov_avg))
