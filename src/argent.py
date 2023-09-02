@@ -41,6 +41,7 @@ class ARGENT(Sensor, Reconfigurable):
         board_name = config.attributes.fields["board"].string_value
         board = dependencies[Board.get_resource_name(board_name)]
         self.board = board
+        self.last_ameno_cnt = 0
         return
 
     """ Implement the methods the Viam RDK defines for the sensor API (rdk:component:sensor) """
@@ -53,27 +54,21 @@ class ARGENT(Sensor, Reconfigurable):
         dir_mov_avg = []
         wind_mph = 0
         
-        ameno_ticks_last = await ameno_cnt.value()
         rain_hits = await rain.value()
-        
-        # Read the wind dir 20 times and get an average
-        for i in range(0, 20):
-            await asyncio.sleep(0.05)
-            cur_dir = await wind_dir_analog.read()
-            dir_mov_avg.append(cur_dir)
 
         ameno_ticks = await ameno_cnt.value()
-        if ameno_ticks_last < ameno_ticks:
+        if self.last_ameno_cnt < ameno_ticks:
             
             ameno_tick_time = await ameno.value()
             wind_mph = (1000000/ameno_tick_time) * 1.492 # Magic number to convert amenometer ticks to mph
-            ameno_ticks_last = ameno_ticks
+            self.last_ameno_cnt = ameno_ticks
         else:
             wind_mph = 0
         rain_hits = await rain.value()
+        cur_dir = await wind_dir_analog.read()
 
         return_value: Dict[str, Any] = dict()
-        return_value["wind_dir_degrees"] = closest_dir(statistics.fmean(dir_mov_avg))
+        return_value["wind_dir_degrees"] = cur_dir
         return_value["wind_mph"] = wind_mph
         return_value["rain_amt_inches"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
         
