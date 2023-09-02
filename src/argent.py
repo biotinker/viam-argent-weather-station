@@ -68,7 +68,7 @@ class ARGENT(Sensor, Reconfigurable):
         cur_dir = await wind_dir_analog.read()
 
         return_value: Dict[str, Any] = dict()
-        return_value["wind_dir_degrees"] = cur_dir
+        return_value["wind_dir_degrees"] = closest_dir(cur_dir)
         return_value["wind_mph"] = wind_mph
         return_value["rain_amt_inches"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
         
