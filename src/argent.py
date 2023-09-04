@@ -60,7 +60,7 @@ class ARGENT(Sensor, Reconfigurable):
         if self.last_ameno_cnt < ameno_ticks:
             
             ameno_tick_time = await ameno.value()
-            wind_mph = (1000000/ameno_tick_time) * 1.492 # Magic number to convert amenometer ticks to mph
+            wind_mph = (100000/ameno_tick_time) * 1.492 # Magic number to convert amenometer ticks to mph
             self.last_ameno_cnt = ameno_ticks
         else:
             wind_mph = 0
