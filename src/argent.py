@@ -58,9 +58,10 @@ class ARGENT(Sensor, Reconfigurable):
         self.day_time = time.time()
         self.week_time = time.time()
         
-        self.hour_hits = 0
-        self.day_hits = 0
-        self.week_hits = 0
+        rain_hits = await rain.value()
+        self.hour_hits = rain_hits
+        self.day_hits = rain_hits
+        self.week_hits = rain_hits
         
         return
 
