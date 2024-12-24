@@ -15,8 +15,14 @@ from viam.utils import struct_to_dict, dict_to_struct, ValueTypes
 
 import statistics
 import asyncio
+import time
 
 LOGGER = getLogger(__name__)
+
+
+hour = 60*60
+day = 60*60*24
+week = 60*60*24*7
 
 class ARGENT(Sensor, Reconfigurable):
     MODEL: ClassVar[Model] = Model(ModelFamily("biotinker", "sensor"), "argent")
@@ -32,20 +38,35 @@ class ARGENT(Sensor, Reconfigurable):
     @classmethod
     def validate(cls, config: ComponentConfig):
         board = config.attributes.fields["board"].string_value
+        adc = config.attributes.fields["adc"].string_value
         if board == "":
             raise Exception("A board must be defined")
+        if adc == "":
+            raise Exception("A adc must be defined")
         return
 
     # Handles attribute reconfiguration
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         board_name = config.attributes.fields["board"].string_value
         board = dependencies[Board.get_resource_name(board_name)]
+        adc_name = config.attributes.fields["adc"].string_value
+        adc = dependencies[Sensor.get_resource_name(adc_name)]
         self.board = board
+        self.adc = adc
+        
+        self.hour_time = time.time()
+        self.day_time = time.time()
+        self.week_time = time.time()
+        
+        self.hour_hits = 0
+        self.day_hits = 0
+        self.week_hits = 0
+        
         return
 
     """ Implement the methods the Viam RDK defines for the sensor API (rdk:component:sensor) """
     async def get_readings(self, extra: Optional[Dict[str, Any]] = None, **kwargs):
-        wind_dir_analog = await self.board.analog_reader_by_name("wind_dir")
+        wind_dir_analog = await self.adc.get_readings()
         rain = await self.board.digital_interrupt_by_name("rain_gauge")
         ameno = await self.board.digital_interrupt_by_name("amenometer")
         
@@ -58,13 +79,26 @@ class ARGENT(Sensor, Reconfigurable):
         wind_mph = ameno_ticks * 1.492 # Magic number to convert amenometer ticks to mph
 
         rain_hits = await rain.value()
-        cur_dir = await wind_dir_analog.read()
+        cur_dir = wind_dir_analog["wind_dir"]
 
         return_value: Dict[str, Any] = dict()
         return_value["wind_dir_degrees"] = closest_dir(cur_dir)
         return_value["wind_mph"] = wind_mph
-        return_value["rain_inches_last_day"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
-        return_value["rain_inches_last_week"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        
+        return_value["rain_inches_last_hour"] = (rain_hits - self.hour_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_day"] = (rain_hits - self.day_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_week"] = (rain_hits - self.week_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        
+        now = time.time()
+        if now - self.hour_time > hour:
+            self.hour_hits = rain_hits
+            self.hour_time = now
+        if now - self.day_time > day:
+            self.day_hits = rain_hits
+            self.day_time = now
+        if now - self.week_time > week:
+            self.week_hits = rain_hits
+            self.week_time = now
         
         return return_value
 
