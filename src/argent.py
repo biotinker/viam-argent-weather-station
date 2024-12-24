@@ -58,10 +58,10 @@ class ARGENT(Sensor, Reconfigurable):
         self.day_time = time.time()
         self.week_time = time.time()
         
-        rain_hits = await rain.value()
-        self.hour_hits = rain_hits
-        self.day_hits = rain_hits
-        self.week_hits = rain_hits
+        self.reconf = True
+        self.hour_hits = 0
+        self.day_hits = 0
+        self.week_hits = 0
         
         return
 
@@ -75,11 +75,15 @@ class ARGENT(Sensor, Reconfigurable):
         wind_mph = 0
         
         rain_hits = await rain.value()
+        if self.reconf:
+            self.reconf = False
+            self.hour_hits = rain_hits
+            self.day_hits = rain_hits
+            self.week_hits = rain_hits
 
         ameno_ticks = await read_freq(ameno)
         wind_mph = ameno_ticks * 1.492 # Magic number to convert amenometer ticks to mph
 
-        rain_hits = await rain.value()
         cur_dir = wind_dir_analog["wind_dir"]
 
         return_value: Dict[str, Any] = dict()
