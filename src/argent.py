@@ -41,7 +41,6 @@ class ARGENT(Sensor, Reconfigurable):
         board_name = config.attributes.fields["board"].string_value
         board = dependencies[Board.get_resource_name(board_name)]
         self.board = board
-        self.last_ameno_cnt = 0
         return
 
     """ Implement the methods the Viam RDK defines for the sensor API (rdk:component:sensor) """
@@ -49,28 +48,23 @@ class ARGENT(Sensor, Reconfigurable):
         wind_dir_analog = await self.board.analog_reader_by_name("wind_dir")
         rain = await self.board.digital_interrupt_by_name("rain_gauge")
         ameno = await self.board.digital_interrupt_by_name("amenometer")
-        ameno_cnt = await self.board.digital_interrupt_by_name("amenometer_count")
         
         dir_mov_avg = []
         wind_mph = 0
         
         rain_hits = await rain.value()
 
-        ameno_ticks = await ameno_cnt.value()
-        if self.last_ameno_cnt < ameno_ticks:
-            
-            ameno_tick_time = await ameno.value()
-            wind_mph = (100000/ameno_tick_time) * 1.492 # Magic number to convert amenometer ticks to mph
-            self.last_ameno_cnt = ameno_ticks
-        else:
-            wind_mph = 0
+        ameno_ticks = await read_freq(ameno)
+        wind_mph = ameno_ticks * 1.492 # Magic number to convert amenometer ticks to mph
+
         rain_hits = await rain.value()
         cur_dir = await wind_dir_analog.read()
 
         return_value: Dict[str, Any] = dict()
         return_value["wind_dir_degrees"] = closest_dir(cur_dir)
         return_value["wind_mph"] = wind_mph
-        return_value["rain_amt_inches"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_day"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_week"] = rain_hits * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
         
         return return_value
 
@@ -99,3 +93,16 @@ def closest_dir(my_dir):
         if abs(my_dir - key) < abs(my_dir - closest):
             closest = key
     return wind_degs[closest]
+
+# reads ticks per second
+async def read_freq(ameno_interrupt):
+    time.sleep(0.1)
+    ameno_val_before = await ameno_interrupt.value()
+    start = time.time()
+    time.sleep(0.5)
+    ameno_val_after = await ameno_interrupt.value()
+    end = time.time()
+    ticks = ameno_val_after - ameno_val_before
+    elapsed = end - start
+    freq = (ticks/2)/elapsed
+    return freq
