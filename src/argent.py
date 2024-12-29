@@ -90,9 +90,9 @@ class ARGENT(Sensor, Reconfigurable):
         return_value["wind_dir_degrees"] = closest_dir(cur_dir)
         return_value["wind_mph"] = wind_mph
         
-        return_value["rain_inches_last_hour"] = (rain_hits - self.hour_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
-        return_value["rain_inches_last_day"] = (rain_hits - self.day_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
-        return_value["rain_inches_last_week"] = (rain_hits - self.week_hits) * 0.011 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_hour"] = (rain_hits - self.hour_hits) * 0.011 * 0.5 # magic number to convert rain ticks to inches. Use 0.2794 for mm. Halve because interrupts double-count.
+        return_value["rain_inches_last_day"] = (rain_hits - self.day_hits) * 0.011 * 0.5 # magic number to convert rain ticks to inches. Use 0.2794 for mm
+        return_value["rain_inches_last_week"] = (rain_hits - self.week_hits) * 0.011 * 0.5 # magic number to convert rain ticks to inches. Use 0.2794 for mm
         
         now = time.time()
         if now - self.hour_time > hour:
